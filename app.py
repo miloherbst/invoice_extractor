@@ -2,7 +2,6 @@ from flask import Flask, request, render_template, jsonify, send_from_directory,
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
-import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from google.cloud import vision
@@ -10,18 +9,20 @@ from invoice_processor import InvoiceProcessor
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-43north'  # Required for session management
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.secret_key = os.urandom(24)  # Required for sessions
+
+# Ensure the uploads directory exists
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
 
-# Create uploads folder if it doesn't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
 # Google Sheets API setup
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SAMPLE_SPREADSHEET_ID = '15HbBXkN3D8SryYxbNYtrVrohzbtt84_0WHpeSt0H7DU'  # Google Sheet ID
 RANGE_NAME = 'Sheet1!A2:G'  # Starting from A2 to leave room for headers
 
@@ -150,29 +151,6 @@ def upload_file():
                         },
                         'fields': 'gridProperties.frozenRowCount'
                     }
-                },
-                {
-                    'repeatCell': {
-                        'range': {
-                            'sheetId': 0,
-                            'startRowIndex': 1,  # Start from row 2 (index 1)
-                            'startColumnIndex': 0,
-                            'endColumnIndex': 7
-                        },
-                        'cell': {
-                            'userEnteredFormat': {
-                                'backgroundColor': {
-                                    'red': 1,
-                                    'green': 1,
-                                    'blue': 1
-                                },
-                                'textFormat': {
-                                    'bold': False
-                                }
-                            }
-                        },
-                        'fields': 'userEnteredFormat(backgroundColor,textFormat)'
-                    }
                 }]
                 
                 service.spreadsheets().batchUpdate(
@@ -220,4 +198,4 @@ def upload_file():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, host='127.0.0.1', port=5000) 
