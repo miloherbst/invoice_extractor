@@ -24,6 +24,7 @@
             text-align: center;
             margin: 20px 0;
             border-radius: 4px;
+            position: relative;
         }
         .upload-area.dragover {
             background-color: #e1f5fe;
@@ -37,9 +38,14 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            margin: 5px;
         }
         .button:hover {
             background-color: #1976d2;
+        }
+        .button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
         #fileInput {
             display: none;
@@ -82,6 +88,14 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .selected-file {
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+        }
+        .upload-buttons {
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -93,7 +107,11 @@
         <div class="upload-area" id="dropZone">
             <p>Drag and drop your invoice here or click to select</p>
             <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg">
-            <button class="button" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+            <div class="upload-buttons">
+                <button class="button" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+                <button class="button" id="uploadButton" disabled>Upload</button>
+            </div>
+            <div id="selectedFile" class="selected-file"></div>
         </div>
         <div id="message" style="display: none;"></div>
         <div id="loading" class="loading"></div>
@@ -104,6 +122,9 @@
         const fileInput = document.getElementById('fileInput');
         const messageDiv = document.getElementById('message');
         const loadingDiv = document.getElementById('loading');
+        const uploadButton = document.getElementById('uploadButton');
+        const selectedFileDiv = document.getElementById('selectedFile');
+        let selectedFile = null;
 
         function showMessage(text, isError = false) {
             messageDiv.textContent = text;
@@ -113,6 +134,18 @@
 
         function showLoading(show) {
             loadingDiv.style.display = show ? 'block' : 'none';
+            uploadButton.disabled = show;
+        }
+
+        function updateSelectedFile(file) {
+            selectedFile = file;
+            selectedFileDiv.textContent = file ? `Selected file: ${file.name}` : '';
+            uploadButton.disabled = !file;
+        }
+
+        function resetUploadArea() {
+            updateSelectedFile(null);
+            fileInput.value = '';
         }
 
         dropZone.addEventListener('dragover', (e) => {
@@ -129,19 +162,21 @@
             dropZone.classList.remove('dragover');
             const files = e.dataTransfer.files;
             if (files.length) {
-                uploadFile(files[0]);
+                updateSelectedFile(files[0]);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
-                uploadFile(e.target.files[0]);
+                updateSelectedFile(e.target.files[0]);
             }
         });
 
-        async function uploadFile(file) {
+        uploadButton.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', selectedFile);
 
             showLoading(true);
             messageDiv.style.display = 'none';
@@ -156,6 +191,7 @@
                 
                 if (response.ok) {
                     showMessage(`${result.message}`);
+                    resetUploadArea();
                 } else {
                     showMessage(result.error || 'An error occurred while processing the invoice.', true);
                 }
@@ -165,7 +201,7 @@
             } finally {
                 showLoading(false);
             }
-        }
+        });
     </script>
 </body>
 </html> 

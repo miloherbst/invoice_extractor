@@ -83,11 +83,11 @@ class InvoiceProcessor:
             results.append({
                 'invoice_date': invoice_date,
                 'invoice_number': invoice_number,
-                'expense_description': item.get('description', ''),
-                'expense_qty': item.get('quantity', 1),
-                'expense_amount': item.get('amount', 0.0),
-                'total_expense_cost': item.get('total', 0.0),
-                'date_accessed': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'expense_description': item['description'],
+                'expense_qty': item['quantity'],
+                'expense_amount': item['amount'],
+                'total_expense_cost': item['total'],
+                'date_accessed': datetime.now().strftime('%Y-%m-%d')  # Only show date
             })
 
         return results
