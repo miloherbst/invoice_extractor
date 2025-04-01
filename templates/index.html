@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Upload</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --input-bg: #2d2d2d;
+            --input-border: #404040;
+            --button-bg: #4a90e2;
+            --button-hover: #357abd;
+            --success-bg: #2ecc71;
+            --success-hover: #27ae60;
+            --error-color: #ff6b6b;
+            --card-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .upload-container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--input-border);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            background-color: var(--input-bg);
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .upload-area:hover {
+            border-color: var(--button-bg);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--button-bg);
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+
+        .button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-decoration: none;
+        }
+
+        .button:hover {
+            background-color: var(--button-hover);
+        }
+
+        .button.logout {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: transparent;
+            border: 1px solid var(--input-border);
+        }
+
+        .button.logout:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        #selected-file {
+            margin-top: 1rem;
+            font-style: italic;
+        }
+
+        #message {
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        #message.success {
+            background-color: var(--success-bg);
+            color: white;
+        }
+
+        #message.error {
+            background-color: var(--error-color);
+            color: white;
+        }
+
+        .progress-container {
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background-color: var(--input-bg);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: var(--button-bg);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <a href="/logout" class="button logout">Logout</a>
+    <div class="container">
+        <h1>Invoice Upload</h1>
+        <div class="upload-container">
+            <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <p>Select an invoice to upload</p>
+                <button class="button">Browse Files</button>
+                <div id="selected-file"></div>
+            </div>
+            <input type="file" id="file-input" style="display: none" accept=".pdf,.png,.jpg,.jpeg">
+            <div class="progress-container" id="progress-container">
+                <div class="progress-bar">
+                    <div class="progress" id="progress"></div>
+                </div>
+            </div>
+            <div id="message"></div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const selectedFile = document.getElementById('selected-file');
+        const message = document.getElementById('message');
+        const progressContainer = document.getElementById('progress-container');
+        const progress = document.getElementById('progress');
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        // Highlight drop zone when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFiles, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles({ target: { files: files } });
+        }
+
+        function handleFiles(e) {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile.textContent = `Selected file: ${file.name}`;
+                uploadFile(file);
+            }
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show progress bar
+            progressContainer.style.display = 'block';
+            progress.style.width = '0%';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progress.style.width = percentComplete + '%';
+                }
+            });
+
+            xhr.onload = function() {
+                let response;
+                try {
+                    response = JSON.parse(xhr.responseText);
+                } catch (e) {
+                    console.error('Error parsing response:', e);
+                    showMessage('Server error: Invalid response format', 'error');
+                    progressContainer.style.display = 'none';
+                    return;
+                }
+
+                if (xhr.status === 200) {
+                    showMessage(response.message, 'success');
+                } else {
+                    const errorMessage = response.error || 'Upload failed';
+                    showMessage(errorMessage, 'error');
+                }
+                // Hide progress bar
+                progressContainer.style.display = 'none';
+            };
+
+            xhr.onerror = function() {
+                showMessage('Network error: Failed to connect to server', 'error');
+                progressContainer.style.display = 'none';
+            };
+
+            xhr.send(formData);
+        }
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = type;
+            message.style.display = 'block';
+            
+            if (type === 'error') {
+                console.error('Error:', text);
+            }
+            
+            // Clear message after 5 seconds for success messages only
+            if (type === 'success') {
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html> 
